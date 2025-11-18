@@ -1,0 +1,57 @@
+create or replace TRIGGER TRG_QTDE_VALOR_MAX
+BEFORE INSERT OR UPDATE ON LISTAPRESENTE
+FOR EACH ROW    
+DECLARE
+    QTDE_PRES NUMBER;
+    VLR_PRES NUMBER;
+    VLR_PRES_ANT NUMBER;
+    VLR_TOTAL NUMBER;
+    NOME_PRES PRESENTE.PDESCRICAO%TYPE;
+    NOME_PRES_ANT PRESENTE.PDESCRICAO%TYPE;
+    NOME_AMIGO AMIGO.ANOME%TYPE;
+BEGIN  
+    IF INSERTING THEN
+        SELECT ANOME
+            INTO NOME_AMIGO
+            FROM AMIGO
+            WHERE AID = :NEW.AID;
+    
+        SELECT COUNT(pid)
+            INTO QTDE_PRES
+            FROM LISTAPRESENTE
+            WHERE AID = :NEW.AID;
+            
+        SELECT PDESCRICAO, PVALOR
+            INTO NOME_PRES, VLR_PRES
+            FROM PRESENTE
+            WHERE PID = :NEW.PID;        
+
+        IF (QTDE_PRES = 10) THEN            
+            RAISE_APPLICATION_ERROR(-20002,'ERRO - Lista de presentes de '|| NOME_AMIGO ||' já atingiu o limite (10) e não será possível acrescentar ' || NOME_PRES ||'.');
+        ELSE            
+            
+            SELECT SUM(P.PVALOR)
+                INTO VLR_TOTAL
+                FROM LISTAPRESENTE LP, PRESENTE P
+                WHERE AID = :NEW.AID AND P.PID = LP.PID;  
+                
+            IF (VLR_TOTAL+VLR_PRES > 500) THEN                
+                RAISE_APPLICATION_ERROR(-20003,'ERRO - Lista de presentes de '|| NOME_AMIGO ||' vai ultrapassar o valor máximo (500) permitido e não será possível acrescentar ' || NOME_PRES ||'.');
+            END IF;
+        /*ELSE --UPDATING
+            SELECT SUM(P.PVALOR)
+                INTO VLR_TOTAL
+                FROM LISTAPRESENTE LP, PRESENTE P
+                WHERE AID = :OLD.AID AND P.PID = LP.PID;
+                
+            SELECT PDESCRICAO, PVALOR
+                INTO NOME_PRES_ANT, VLR_PRES_ANT
+                FROM PRESENTE
+                WHERE PID = :OLD.PID;     
+                
+            IF (VLR_TOTAL+VLR_PRES-VLR_PRES_ANT > 500) THEN                 
+                RAISE_APPLICATION_ERROR(-20004,'ERRO - Lista de presentes de '|| NOME_AMIGO ||' vai ultrapassar o valor máximo (500) permitido e não será possível acrescentar ' || NOME_PRES ||' no lugar de '|| NOME_PRES_ANT ||' .');
+            END IF;    */
+        END IF;        
+    END IF;    
+END;
